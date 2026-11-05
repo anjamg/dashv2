@@ -1,0 +1,37 @@
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_DATABASE: vita
+      MYSQL_USER: vita_app
+      MYSQL_PASSWORD: vita_dev_password
+      MYSQL_ROOT_PASSWORD: vita_dev_root_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      # Mount a schema/data dump here when available:
+      # - ./vita-no_data.sql:/docker-entrypoint-initdb.d/01-schema.sql
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: mysql+pymysql://vita_app:vita_dev_password@db:3306/vita?charset=utf8mb4
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on:
+      - api
+
+volumes:
+  mariadb_data:
