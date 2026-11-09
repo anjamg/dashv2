@@ -18,11 +18,32 @@ type TeamStats = {
   avg_dur: number | null
 }
 
+type CallResultStats = {
+  call_date: string
+  team_name: string
+  answered: number
+  abandoned: number
+  missed: number
+  outside_hours: number
+}
+
 const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
 
+function getLocalDate() {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
+function formatDay(value: string) {
+  const [, month, day] = value.split('-')
+  return `${day}/${month}`
+}
+
 export default function Dashboard() {
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(getLocalDate)
+  const [dateTo, setDateTo] = useState(getLocalDate)
   const filters = { date_from: dateFrom || undefined, date_to: dateTo || undefined }
   const kpis = useQuery({
     queryKey: ['dashboard-kpis', filters],
@@ -31,6 +52,10 @@ export default function Dashboard() {
   const teams = useQuery({
     queryKey: ['dashboard-by-team', filters],
     queryFn: async () => (await api.get<TeamStats[]>('/dashboard/by-team', { params: filters })).data,
+  })
+  const results = useQuery({
+    queryKey: ['dashboard-by-result', filters],
+    queryFn: async () => (await api.get<CallResultStats[]>('/dashboard/by-result', { params: filters })).data,
   })
   const cards = [
     { label: 'Appels au total', value: kpis.data?.total_calls },
@@ -62,6 +87,38 @@ export default function Dashboard() {
             <strong>{card.value == null ? (kpis.isPending ? '…' : '—') : typeof card.value === 'number' || typeof card.value === 'string' && !card.value.includes('s') ? numberFormat.format(Number(card.value)) : card.value}</strong>
           </article>
         ))}
+      </section>
+
+      <section className="panel chart-panel">
+        <div className="panel-heading">
+          <div><h2>Résultats des appels</h2><p>Répartition quotidienne par équipe et par résultat</p></div>
+        </div>
+        {results.isPending ? <p className="empty-state">Chargement des données…</p> : results.isError ? (
+          <p className="empty-state error-state">Impossible de charger les résultats des appels.</p>
+        ) : results.data?.length ? (
+          <div className="chart-area" style={{ overflowX: 'auto' }}>
+            <div style={{ minWidth: `${Math.max(640, results.data.length * 90)}px`, height: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={results.data.map((row) => ({
+                    ...row,
+                    label: `${formatDay(row.call_date)} · ${row.team_name}`,
+                  }))}
+                  margin={{ top: 8, right: 12, left: -16, bottom: 32 }}
+                >
+                <CartesianGrid stroke="#edf0f5" vertical={false} />
+                <XAxis dataKey="label" interval={0} angle={-35} textAnchor="end" height={72} axisLine={false} tickLine={false} tick={{ fill: '#778196', fontSize: 11 }} />
+                <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#778196', fontSize: 12 }} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                <Bar dataKey="answered" name="Répondus" stackId="results" fill="#159473" maxBarSize={52} />
+                <Bar dataKey="abandoned" name="Abandonnés" stackId="results" fill="#c39316" maxBarSize={52} />
+                <Bar dataKey="missed" name="Manqués" stackId="results" fill="#b63f4c" maxBarSize={52} />
+                <Bar dataKey="outside_hours" name="Hors horaires" stackId="results" fill="#68758b" radius={[4, 4, 0, 0]} maxBarSize={52} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : <p className="empty-state">Aucun appel disponible pour cette période.</p>}
       </section>
 
       <section className="panel chart-panel">

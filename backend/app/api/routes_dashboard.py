@@ -1,7 +1,7 @@
 from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text
+from sqlalchemy import text
 from ..core.database import get_db
 
 router = APIRouter()
@@ -36,6 +36,43 @@ def by_team(date_from: date | None = None, date_to: date | None = None, team: st
         ORDER BY calls DESC
     """)
     return [dict(r) for r in db.execute(sql, {"d1": date_from, "d2": date_to, "team": team}).mappings()]
+
+@router.get("/by-result")
+def by_result(date_from: date | None = None, date_to: date | None = None, db: Session = Depends(get_db)):
+    sql = text("""
+        SELECT
+          DATE(datetime_tz_offset_incl) AS call_date,
+          COALESCE(team_name, 'Sans équipe') AS team_name,
+          SUM(CASE WHEN answered = 1 THEN 1 ELSE 0 END) AS answered,
+          SUM(CASE
+                WHEN COALESCE(answered, 0) <> 1
+                  AND (
+                    LOWER(COALESCE(missed_call_reason, '')) LIKE '%outside%'
+                    OR LOWER(COALESCE(missed_call_reason, '')) LIKE '%hour%'
+                    OR LOWER(COALESCE(missed_call_reason, '')) LIKE '%horaire%'
+                  )
+                THEN 1 ELSE 0
+              END) AS outside_hours,
+          SUM(CASE
+                WHEN COALESCE(answered, 0) <> 1
+                  AND LOWER(COALESCE(missed_call_reason, '')) LIKE '%abandon%'
+                THEN 1 ELSE 0
+              END) AS abandoned,
+          SUM(CASE
+                WHEN COALESCE(answered, 0) <> 1
+                  AND LOWER(COALESCE(missed_call_reason, '')) NOT LIKE '%outside%'
+                  AND LOWER(COALESCE(missed_call_reason, '')) NOT LIKE '%hour%'
+                  AND LOWER(COALESCE(missed_call_reason, '')) NOT LIKE '%horaire%'
+                  AND LOWER(COALESCE(missed_call_reason, '')) NOT LIKE '%abandon%'
+                THEN 1 ELSE 0
+              END) AS missed
+        FROM data
+        WHERE (:d1 IS NULL OR DATE(datetime_tz_offset_incl) >= :d1)
+          AND (:d2 IS NULL OR DATE(datetime_tz_offset_incl) <= :d2)
+        GROUP BY DATE(datetime_tz_offset_incl), team_name
+        ORDER BY call_date, team_name
+    """)
+    return [dict(row) for row in db.execute(sql, {"d1": date_from, "d2": date_to}).mappings()]
 
 @router.get("/effectif")
 def effectif(date: str = None, db: Session = Depends(get_db)):

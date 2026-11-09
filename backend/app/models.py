@@ -61,7 +61,7 @@ class Data(Base):
     time_to_answer_sec = Column(Integer)
     user_norm = Column(String(255))
     # + 40 other columns kept as generic for performance - add as needed
-    call_id = Column(String(100))
+    call_id = Column(String(100), unique=True)
 
 class DataStats(Base):
     __tablename__ = "data_stats"

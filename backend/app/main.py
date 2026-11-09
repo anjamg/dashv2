@@ -6,7 +6,7 @@ from . import models
 # Create tables if not exist (you already have them)
 # Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="VITA Modern API", version="2.0.0")
+app = FastAPI(title="VITA DASH", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,

@@ -15,8 +15,10 @@ services:
 
   api:
     build: ./backend
+    container_name: py-backend
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "5656:8000"
     env_file:
       - ./backend/.env
     environment:
@@ -26,6 +28,8 @@ services:
 
   frontend:
     build: ./frontend
+    container_name: react-frontend
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:

@@ -21,6 +21,13 @@ type CallsResponse = {
 
 const pageSize = 50
 
+function getLocalDate() {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
 function formatDate(value: string | null) {
   if (!value) return '—'
   const date = new Date(value)
@@ -31,8 +38,8 @@ export default function Calls() {
   const [team, setTeam] = useState('')
   const [user, setUser] = useState('')
   const [answered, setAnswered] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(getLocalDate)
+  const [dateTo, setDateTo] = useState(getLocalDate)
   const [page, setPage] = useState(1)
   const params = {
     page,
@@ -77,12 +84,12 @@ export default function Calls() {
               setTeam('')
               setUser('')
               setAnswered('')
-              setDateFrom('')
-              setDateTo('')
+              setDateFrom(getLocalDate())
+              setDateTo(getLocalDate())
               setPage(1)
             }}
           >
-            Effacer
+            Réinitialiser
           </button>
         </div>
         <div className="filter-grid">
